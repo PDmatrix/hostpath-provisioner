@@ -71,33 +71,12 @@ func (hpc *hostPathController) validateCreateVolumeRequest(req *csi.CreateVolume
 	return nil
 }
 
-func (hpc *hostPathController) validateCreateVolumeRequestTopology(req *csi.CreateVolumeRequest) error {
-	if req.AccessibilityRequirements != nil {
-		for _, requisite := range req.AccessibilityRequirements.Requisite {
-			if requisite.Segments[TopologyKeyNode] == hpc.cfg.NodeID {
-				return nil
-			}
-		}
-		for _, preferred := range req.AccessibilityRequirements.Preferred {
-			if preferred.Segments[TopologyKeyNode] == hpc.cfg.NodeID {
-				return nil
-			}
-		}
-		return status.Error(codes.InvalidArgument, "not correct node")
-	}
-	return nil
-}
-
 func (hpc *hostPathController) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (resp *csi.CreateVolumeResponse, finalErr error) {
 	if req != nil {
 		klog.V(3).Infof("Create Volume Request: %+v", *req)
 	}
 
 	if err := hpc.validateCreateVolumeRequest(req); err != nil {
-		return nil, err
-	}
-
-	if err := hpc.validateCreateVolumeRequestTopology(req); err != nil {
 		return nil, err
 	}
 
@@ -109,8 +88,6 @@ func (hpc *hostPathController) CreateVolume(ctx context.Context, req *csi.Create
 	if err != nil {
 		return nil, err
 	}
-	topologies := []*csi.Topology{}
-	topologies = append(topologies, &csi.Topology{Segments: map[string]string{TopologyKeyNode: hpc.cfg.NodeID}})
 
 	if exists, err := checkPathExist(filepath.Join(hpc.cfg.StoragePoolDataDir[storagePoolName], req.GetName())); err != nil {
 		return nil, err
@@ -123,11 +100,10 @@ func (hpc *hostPathController) CreateVolume(ctx context.Context, req *csi.Create
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
-			VolumeId:           req.Name,
-			CapacityBytes:      capacity,
-			VolumeContext:      req.GetParameters(),
-			ContentSource:      req.GetVolumeContentSource(),
-			AccessibleTopology: topologies,
+			VolumeId:      req.Name,
+			CapacityBytes: capacity,
+			VolumeContext: req.GetParameters(),
+			ContentSource: req.GetVolumeContentSource(),
 		},
 	}, nil
 }

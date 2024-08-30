@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -30,7 +31,6 @@ import (
 )
 
 const (
-	TopologyKeyNode     = "topology.hostpath.csi/node"
 	ephemeralContextKey = "csi.storage.k8s.io/ephemeral"
 )
 
@@ -265,12 +265,17 @@ func (hpn *hostPathNode) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 }
 
 func (hpn *hostPathNode) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-	resp := &csi.NodeGetInfoResponse{
-		NodeId: hpn.cfg.NodeID,
+	osType := runtime.GOOS
+
+	segments := map[string]string{
+		"kubernetes.io/os": osType,
 	}
 
-	resp.AccessibleTopology = &csi.Topology{
-		Segments: map[string]string{TopologyKeyNode: hpn.cfg.NodeID},
+	topology := &csi.Topology{Segments: segments}
+
+	resp := &csi.NodeGetInfoResponse{
+		NodeId:             hpn.cfg.NodeID,
+		AccessibleTopology: topology,
 	}
 
 	return resp, nil
